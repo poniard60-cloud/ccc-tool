@@ -1,0 +1,1089 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Xアフィリエイト下書き自動生成ダッシュボード（JP / 10アカウント / 手動投稿）</title>
+<style>
+  :root{
+    --bg:#0b0f17; --panel:#111827; --panel2:#0f172a; --line:#243244;
+    --text:#e5e7eb; --muted:#9ca3af; --accent:#60a5fa; --good:#34d399; --warn:#fbbf24; --bad:#fb7185;
+    --chip:#1f2a44; --btn:#1d4ed8; --btn2:#334155;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,"Noto Sans JP",sans-serif;background:var(--bg);color:var(--text)}
+  header{position:sticky;top:0;z-index:5;background:rgba(11,15,23,.88);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+  header .row{display:flex;gap:12px;align-items:center;justify-content:space-between;padding:14px 16px;max-width:1200px;margin:0 auto}
+  h1{margin:0;font-size:14px;font-weight:700}
+  .sub{font-size:12px;color:var(--muted)}
+  main{max-width:1200px;margin:0 auto;padding:14px 16px 36px}
+  .grid{display:grid;grid-template-columns: 380px 1fr;gap:14px}
+  @media (max-width: 980px){.grid{grid-template-columns:1fr}}
+  .card{background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid var(--line);border-radius:14px;padding:12px}
+  .card h2{margin:0 0 8px;font-size:13px}
+  .card h3{margin:10px 0 6px;font-size:12px;color:var(--muted);font-weight:700}
+  .row{display:flex;gap:10px;align-items:center}
+  .row.wrap{flex-wrap:wrap}
+  .col{display:flex;flex-direction:column;gap:8px}
+  label{font-size:11px;color:var(--muted)}
+  input,select,textarea{
+    width:100%;padding:9px 10px;border-radius:10px;border:1px solid var(--line);
+    background:#0b1220;color:var(--text);outline:none
+  }
+  textarea{min-height:80px;resize:vertical}
+  button{
+    border:1px solid var(--line);background:var(--btn);color:white;
+    padding:9px 10px;border-radius:10px;cursor:pointer;font-weight:700;font-size:12px
+  }
+  button.secondary{background:var(--btn2)}
+  button.ghost{background:transparent}
+  button:disabled{opacity:.5;cursor:not-allowed}
+  .pill{display:inline-flex;align-items:center;gap:6px;background:var(--chip);border:1px solid var(--line);padding:6px 8px;border-radius:999px;font-size:11px;color:var(--muted)}
+  .pill b{color:var(--text)}
+  .muted{color:var(--muted)}
+  .small{font-size:12px}
+  .warn{color:var(--warn)}
+  .good{color:var(--good)}
+  .bad{color:var(--bad)}
+  .list{display:flex;flex-direction:column;gap:10px}
+  .item{border:1px solid var(--line);border-radius:14px;padding:10px;background:#0b1220}
+  .item .top{display:flex;gap:10px;justify-content:space-between;align-items:flex-start}
+  .item .title{font-size:13px;font-weight:800;margin:0 0 6px}
+  .item .meta{display:flex;gap:8px;flex-wrap:wrap}
+  .kbd{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;font-size:11px;background:#0a0f1d;border:1px solid var(--line);padding:2px 6px;border-radius:8px;color:var(--muted)}
+  a{color:var(--accent);text-decoration:none}
+  a:hover{text-decoration:underline}
+  .split{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  @media (max-width: 980px){.split{grid-template-columns:1fr}}
+  .hr{height:1px;background:var(--line);margin:10px 0}
+  .chips{display:flex;gap:6px;flex-wrap:wrap}
+  .tag{background:#0a1630;border:1px solid var(--line);color:var(--muted);padding:4px 8px;border-radius:999px;font-size:11px}
+  .right{justify-content:flex-end}
+  .dangerbox{border:1px solid rgba(251,113,133,.45);background:rgba(251,113,133,.08);padding:10px;border-radius:12px}
+  .okbox{border:1px solid rgba(52,211,153,.35);background:rgba(52,211,153,.08);padding:10px;border-radius:12px}
+  .infobox{border:1px solid rgba(96,165,250,.35);background:rgba(96,165,250,.08);padding:10px;border-radius:12px}
+</style>
+</head>
+<body>
+<header>
+  <div class="row">
+    <div>
+      <h1>Xアフィリエイト下書き自動生成ダッシュボード（日本 / 10アカウント / 投稿は手動）</h1>
+      <div class="sub">ワンボタンで「収集→ネタ化→下書き生成→広告表記/リスク検知→コピー」まで。自動投稿はしません。</div>
+    </div>
+    <div class="row">
+      <button class="secondary" id="btnExport">設定を書き出し</button>
+      <button class="secondary" id="btnImport">読み込み</button>
+      <input type="file" id="importFile" accept="application/json" style="display:none">
+      <button class="ghost" id="btnReset">初期化</button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="grid">
+    <!-- Left: Settings -->
+    <section class="card">
+      <h2>コントロール</h2>
+
+      <div class="infobox small">
+        <b>重要</b>：このHTMLは「下書き生成」までのツールです。Xへの<b>自動投稿</b>や<b>不自然な大量運用</b>はしません。<br>
+        RSS等はサイト側の制限（CORS/規約）で取得できない場合があります。その場合は「手入力ネタ」で運用できます。
+      </div>
+
+      <div class="split">
+        <div>
+          <label>広告表記（共通）</label>
+          <select id="adRule">
+            <option value="prefix:#PR">先頭に「#PR」</option>
+            <option value="suffix:広告">末尾に「（広告）」</option>
+            <option value="suffix:#PR">末尾に「 #PR」</option>
+          </select>
+        </div>
+        <div>
+          <label>1ネタあたり下書き案数</label>
+          <select id="variantCount">
+            <option value="3">3案（A/B/C）</option>
+            <option value="2">2案</option>
+            <option value="1">1案</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="split">
+        <div>
+          <label>文字数上限</label>
+          <input id="charLimit" type="number" min="80" max="280" value="140">
+        </div>
+        <div>
+          <label>同一ネタの配布上限（アカウント数）</label>
+          <input id="maxDistribute" type="number" min="1" max="10" value="2">
+        </div>
+      </div>
+
+      <h3>NG表現（検知→警告）</h3>
+      <textarea id="forbidden" placeholder="例）絶対, 必ず, 100%, 確実に, 誰でも, 治る, 必勝, 最安, No.1"></textarea>
+      <div class="small muted">カンマ区切り。検知すると下書きにフラグが立ちます（自動で言い換えも一部実行）。</div>
+
+      <div class="hr"></div>
+
+      <h2>ソース（収集元）</h2>
+      <div class="col">
+        <div class="split">
+          <div>
+            <label>RSS/URL（任意）</label>
+            <input id="srcUrl" placeholder="https://example.com/feed.xml など">
+          </div>
+          <div>
+            <label>カテゴリタグ（任意）</label>
+            <input id="srcTags" placeholder="ガジェット,節約 など">
+          </div>
+        </div>
+        <div class="split">
+          <div>
+            <label>キーワード（含む / 任意）</label>
+            <input id="srcInclude" placeholder="値下げ, セール, 新発売 など">
+          </div>
+          <div>
+            <label>キーワード（除外 / 任意）</label>
+            <input id="srcExclude" placeholder="炎上, ゴシップ など">
+          </div>
+        </div>
+
+        <div class="split">
+          <div>
+            <label>CORSプロキシ（任意）</label>
+            <input id="corsProxy" placeholder="例）https://api.allorigins.win/raw?url={URL}">
+          </div>
+          <div class="row right" style="align-items:flex-end">
+            <button class="secondary" id="btnAddSource">ソース追加</button>
+          </div>
+        </div>
+        <div class="small muted">※RSS取得がブロックされる場合があります。プロキシは<b>自分で用意</b>するのが安全です（外部無料プロキシは不安定）。</div>
+      </div>
+
+      <div class="hr"></div>
+
+      <h2>手入力ネタ（確実に運用できる）</h2>
+      <textarea id="manualText" placeholder="例）【ネタ】楽天スーパーSALEでXXがポイント還元…（出典URLも一緒に貼ると良い）"></textarea>
+      <div class="row right">
+        <button class="secondary" id="btnAddManual">手入力ネタを追加</button>
+      </div>
+
+      <div class="hr"></div>
+
+      <h2>ワンボタン生成</h2>
+      <div class="row wrap">
+        <button id="btnGenerate">今日の下書きを生成</button>
+        <button class="secondary" id="btnGenerateDeals">セール/値下げだけ生成</button>
+      </div>
+      <div class="small muted" id="status">準備OK</div>
+
+      <div class="hr"></div>
+
+      <h2>アカウント（最大10）</h2>
+      <div class="small muted">人格の捏造ではなく「運用テーマ×文体×NG集」で差別化します。</div>
+      <div id="accounts"></div>
+      <div class="row right">
+        <button class="secondary" id="btnSeed10">10アカウント初期テンプレ</button>
+      </div>
+    </section>
+
+    <!-- Right: Data -->
+    <section class="card">
+      <div class="row" style="justify-content:space-between;align-items:flex-end">
+        <div>
+          <h2>下書きキュー</h2>
+          <div class="sub">未承認→承認→コピーして手動投稿→投稿済みにする</div>
+        </div>
+        <div class="row">
+          <select id="filterAccount" title="アカウントで絞り込み"></select>
+          <select id="filterStatus" title="ステータスで絞り込み">
+            <option value="all">全て</option>
+            <option value="pending">未承認</option>
+            <option value="approved">承認済み</option>
+            <option value="posted">投稿済み</option>
+            <option value="rejected">却下</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="hr"></div>
+
+      <h3>ソース一覧</h3>
+      <div id="sourcesList" class="list"></div>
+
+      <div class="hr"></div>
+
+      <h3>ネタ（収集/手入力）</h3>
+      <div id="itemsList" class="list"></div>
+
+      <div class="hr"></div>
+
+      <h3>下書き</h3>
+      <div id="draftsList" class="list"></div>
+    </section>
+  </div>
+</main>
+
+<script>
+/** =========================
+ *  Storage
+ *  ========================= */
+const LS_KEY = "x_aff_draft_tool_v1";
+const nowISO = () => new Date().toISOString();
+const clamp = (n,min,max)=>Math.max(min,Math.min(max,n));
+const uid = () => crypto.randomUUID ? crypto.randomUUID() : ("id_"+Math.random().toString(16).slice(2)+"_"+Date.now());
+
+const DEFAULT_FORBIDDEN = ["絶対","必ず","100%","確実に","誰でも","治る","必勝","最安","No.1","ナンバーワン","保証"];
+const DEFAULT_ACCOUNTS = Array.from({length:10}).map((_,i)=>({
+  id: uid(),
+  name: `アカウント${i+1}`,
+  theme: ["ガジェット/家電","節約/生活費","サブスク/アプリ","仕事効率化","学習/資格","旅行/ホテル","美容（表現注意）","日用品/便利グッズ","エンタメ","住まい/インテリア"][i] || "テーマ未設定",
+  tone: ["丁寧","フランク","淡々","熱量高め"][i%4],
+  maxPerDay: 3,
+  enabled: true
+}));
+
+const state = loadState();
+
+function loadState(){
+  const raw = localStorage.getItem(LS_KEY);
+  if(raw){
+    try{
+      const s = JSON.parse(raw);
+      // minimal migrations
+      s.accounts ??= DEFAULT_ACCOUNTS;
+      s.sources ??= [];
+      s.items ??= [];
+      s.drafts ??= [];
+      s.settings ??= {};
+      s.settings.forbidden ??= DEFAULT_FORBIDDEN.join(", ");
+      s.settings.adRule ??= "prefix:#PR";
+      s.settings.variantCount ??= 3;
+      s.settings.charLimit ??= 140;
+      s.settings.maxDistribute ??= 2;
+      s.settings.corsProxy ??= "";
+      return s;
+    }catch(e){}
+  }
+  return {
+    accounts: DEFAULT_ACCOUNTS,
+    sources: [],
+    items: [],
+    drafts: [],
+    settings: {
+      forbidden: DEFAULT_FORBIDDEN.join(", "),
+      adRule: "prefix:#PR",
+      variantCount: 3,
+      charLimit: 140,
+      maxDistribute: 2,
+      corsProxy: ""
+    }
+  };
+}
+function saveState(){
+  localStorage.setItem(LS_KEY, JSON.stringify(state));
+}
+
+/** =========================
+ *  UI helpers
+ *  ========================= */
+const el = (id)=>document.getElementById(id);
+const setStatus = (t)=>{ el("status").textContent = t; };
+
+function escapeHTML(s){
+  return (s??"").replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
+}
+
+function parseCSVish(text){
+  return (text||"").split(",").map(s=>s.trim()).filter(Boolean);
+}
+
+/** =========================
+ *  Render
+ *  ========================= */
+function renderAll(){
+  // settings -> inputs
+  el("forbidden").value = state.settings.forbidden ?? "";
+  el("adRule").value = state.settings.adRule ?? "prefix:#PR";
+  el("variantCount").value = String(state.settings.variantCount ?? 3);
+  el("charLimit").value = String(state.settings.charLimit ?? 140);
+  el("maxDistribute").value = String(state.settings.maxDistribute ?? 2);
+  el("corsProxy").value = state.settings.corsProxy ?? "";
+
+  renderAccounts();
+  renderSources();
+  renderItems();
+  renderDrafts();
+  renderFilters();
+}
+
+function renderAccounts(){
+  const wrap = el("accounts");
+  wrap.innerHTML = "";
+
+  state.accounts.forEach((a, idx)=>{
+    const div = document.createElement("div");
+    div.className = "item";
+    div.innerHTML = `
+      <div class="top">
+        <div style="flex:1">
+          <div class="row" style="justify-content:space-between">
+            <div class="title">${escapeHTML(a.name)}</div>
+            <label class="pill"><input type="checkbox" data-act="acc_enabled" data-id="${a.id}" ${a.enabled ? "checked":""} /> 有効</label>
+          </div>
+          <div class="split">
+            <div>
+              <label>運用名</label>
+              <input value="${escapeHTML(a.name)}" data-act="acc_name" data-id="${a.id}" />
+            </div>
+            <div>
+              <label>テーマ</label>
+              <input value="${escapeHTML(a.theme)}" data-act="acc_theme" data-id="${a.id}" />
+            </div>
+          </div>
+          <div class="split">
+            <div>
+              <label>文体</label>
+              <select data-act="acc_tone" data-id="${a.id}">
+                ${["丁寧","フランク","淡々","熱量高め"].map(t=>`<option ${a.tone===t?"selected":""}>${t}</option>`).join("")}
+              </select>
+            </div>
+            <div>
+              <label>1日上限（推奨）</label>
+              <input type="number" min="0" max="20" value="${a.maxPerDay ?? 3}" data-act="acc_max" data-id="${a.id}" />
+            </div>
+          </div>
+          <div class="small muted">※同一ネタのコピペ量産は避ける（切り口を変える）</div>
+        </div>
+      </div>
+    `;
+    wrap.appendChild(div);
+  });
+
+  wrap.querySelectorAll("[data-act]").forEach(inp=>{
+    inp.addEventListener("input", (e)=>{
+      const id = e.target.dataset.id;
+      const act = e.target.dataset.act;
+      const acc = state.accounts.find(x=>x.id===id);
+      if(!acc) return;
+      if(act==="acc_name") acc.name = e.target.value;
+      if(act==="acc_theme") acc.theme = e.target.value;
+      if(act==="acc_tone") acc.tone = e.target.value;
+      if(act==="acc_max") acc.maxPerDay = clamp(parseInt(e.target.value||"3",10),0,999);
+      if(act==="acc_enabled") acc.enabled = !!e.target.checked;
+      saveState();
+      renderFilters();
+      renderDrafts();
+    });
+  });
+}
+
+function renderSources(){
+  const wrap = el("sourcesList");
+  wrap.innerHTML = "";
+  if(state.sources.length===0){
+    wrap.innerHTML = `<div class="muted small">ソースがありません（RSS/URLを追加するか、手入力ネタで運用できます）</div>`;
+    return;
+  }
+  state.sources.forEach(s=>{
+    const div = document.createElement("div");
+    div.className = "item";
+    div.innerHTML = `
+      <div class="top">
+        <div style="flex:1">
+          <div class="title">${escapeHTML(s.url)}</div>
+          <div class="meta">
+            ${(s.tags||[]).map(t=>`<span class="tag">${escapeHTML(t)}</span>`).join("")}
+          </div>
+          <div class="small muted">含む：${escapeHTML((s.include||[]).join(", ")) || "（なし）"} / 除外：${escapeHTML((s.exclude||[]).join(", ")) || "（なし）"}</div>
+        </div>
+        <div class="row">
+          <button class="secondary" data-act="src_edit" data-id="${s.id}">編集</button>
+          <button class="ghost" data-act="src_del" data-id="${s.id}">削除</button>
+        </div>
+      </div>
+    `;
+    wrap.appendChild(div);
+  });
+
+  wrap.querySelectorAll("[data-act='src_del']").forEach(b=>{
+    b.addEventListener("click", ()=>{
+      const id = b.dataset.id;
+      state.sources = state.sources.filter(x=>x.id!==id);
+      saveState(); renderSources();
+    });
+  });
+
+  wrap.querySelectorAll("[data-act='src_edit']").forEach(b=>{
+    b.addEventListener("click", ()=>{
+      const s = state.sources.find(x=>x.id===b.dataset.id);
+      if(!s) return;
+      // Load into inputs for quick edit
+      el("srcUrl").value = s.url;
+      el("srcTags").value = (s.tags||[]).join(", ");
+      el("srcInclude").value = (s.include||[]).join(", ");
+      el("srcExclude").value = (s.exclude||[]).join(", ");
+      // Remove current one; re-add on "追加"
+      state.sources = state.sources.filter(x=>x.id!==s.id);
+      saveState(); renderSources();
+      setStatus("編集内容を反映して「ソース追加」を押してください");
+    });
+  });
+}
+
+function renderItems(){
+  const wrap = el("itemsList");
+  wrap.innerHTML = "";
+  if(state.items.length===0){
+    wrap.innerHTML = `<div class="muted small">ネタがありません。RSS取得または手入力ネタを追加してください。</div>`;
+    return;
+  }
+  // newest first
+  const items = [...state.items].sort((a,b)=> (b.createdAt||"").localeCompare(a.createdAt||""));
+  items.slice(0, 30).forEach(it=>{
+    const div = document.createElement("div");
+    div.className = "item";
+    div.innerHTML = `
+      <div class="top">
+        <div style="flex:1">
+          <div class="title">${escapeHTML(it.title || "（タイトルなし）")}</div>
+          <div class="small muted">${escapeHTML(it.summary||"")}</div>
+          <div class="meta" style="margin-top:6px">
+            <span class="pill">種別 <b>${escapeHTML(it.type)}</b></span>
+            ${it.url ? `<a class="pill" href="${escapeHTML(it.url)}" target="_blank" rel="noreferrer">出典</a>` : `<span class="pill">出典 <b>なし</b></span>`}
+            ${it.tags?.length ? `<span class="pill">タグ <b>${escapeHTML(it.tags.join(" / "))}</b></span>` : ""}
+          </div>
+        </div>
+        <div class="row">
+          <button class="ghost" data-act="item_del" data-id="${it.id}">削除</button>
+        </div>
+      </div>
+    `;
+    wrap.appendChild(div);
+  });
+
+  wrap.querySelectorAll("[data-act='item_del']").forEach(b=>{
+    b.addEventListener("click", ()=>{
+      const id = b.dataset.id;
+      state.items = state.items.filter(x=>x.id!==id);
+      // also remove related drafts
+      state.drafts = state.drafts.filter(d=>d.itemId!==id);
+      saveState(); renderItems(); renderDrafts();
+    });
+  });
+}
+
+function renderFilters(){
+  const sel = el("filterAccount");
+  const prev = sel.value;
+  sel.innerHTML = `<option value="all">全アカウント</option>` + state.accounts.map(a=>`<option value="${a.id}">${escapeHTML(a.name)}</option>`).join("");
+  sel.value = prev || "all";
+}
+
+function renderDrafts(){
+  const wrap = el("draftsList");
+  wrap.innerHTML = "";
+
+  const accFilter = el("filterAccount").value || "all";
+  const stFilter = el("filterStatus").value || "all";
+
+  let drafts = [...state.drafts].sort((a,b)=>(b.createdAt||"").localeCompare(a.createdAt||""));
+  if(accFilter!=="all") drafts = drafts.filter(d=>d.accountId===accFilter);
+  if(stFilter!=="all") drafts = drafts.filter(d=>d.status===stFilter);
+
+  if(drafts.length===0){
+    wrap.innerHTML = `<div class="muted small">下書きがありません。「今日の下書きを生成」を押してください。</div>`;
+    return;
+  }
+
+  drafts.slice(0, 80).forEach(d=>{
+    const acc = state.accounts.find(a=>a.id===d.accountId);
+    const item = state.items.find(i=>i.id===d.itemId);
+    const flags = d.flags || {};
+    const flagBad = Object.values(flags).some(v=>v===true);
+
+    const statusColor =
+      d.status==="pending" ? "warn" :
+      d.status==="approved" ? "good" :
+      d.status==="posted" ? "muted" : "bad";
+
+    const div = document.createElement("div");
+    div.className = "item";
+    div.innerHTML = `
+      <div class="top">
+        <div style="flex:1">
+          <div class="row" style="justify-content:space-between;align-items:flex-start">
+            <div>
+              <div class="title">${escapeHTML(acc?.name || "（削除済みアカウント）")} <span class="kbd">${escapeHTML(acc?.theme||"")}</span></div>
+              <div class="small muted">${escapeHTML(item?.title || "（ネタ削除済み）")}</div>
+              <div class="chips" style="margin-top:6px">
+                <span class="pill">状態 <b class="${statusColor}">${escapeHTML(statusLabel(d.status))}</b></span>
+                <span class="pill">スコア <b>${escapeHTML(String(d.score ?? 0))}</b></span>
+                <span class="pill">リスク <b class="${d.risk==='high'?'bad':d.risk==='med'?'warn':'good'}">${escapeHTML(d.risk||"low")}</b></span>
+                ${item?.url ? `<a class="pill" href="${escapeHTML(item.url)}" target="_blank" rel="noreferrer">出典</a>` : ``}
+                ${flagBad ? `<span class="pill bad">要確認</span>` : `<span class="pill good">チェックOK</span>`}
+              </div>
+            </div>
+            <div class="row">
+              <button class="secondary" data-act="draft_copy" data-id="${d.id}">コピー</button>
+              ${d.status==="pending" ? `<button data-act="draft_approve" data-id="${d.id}">承認</button>` : ``}
+              ${d.status!=="posted" ? `<button class="secondary" data-act="draft_posted" data-id="${d.id}">投稿済み</button>` : ``}
+              <button class="ghost" data-act="draft_reject" data-id="${d.id}">却下</button>
+            </div>
+          </div>
+
+          <div class="${flagBad ? 'dangerbox':'okbox'} small" style="margin-top:8px">
+            <div><b>本文（案A）</b> <span class="muted">(${countChars(d.variants?.[0]||"")}文字)</span></div>
+            <div style="margin-top:6px;white-space:pre-wrap">${escapeHTML(d.variants?.[0]||"")}</div>
+            ${d.variants?.[1] ? `<div class="hr"></div><div><b>本文（案B）</b> <span class="muted">(${countChars(d.variants[1])}文字)</span></div><div style="margin-top:6px;white-space:pre-wrap">${escapeHTML(d.variants[1])}</div>` : ``}
+            ${d.variants?.[2] ? `<div class="hr"></div><div><b>本文（案C）</b> <span class="muted">(${countChars(d.variants[2])}文字)</span></div><div style="margin-top:6px;white-space:pre-wrap">${escapeHTML(d.variants[2])}</div>` : ``}
+            <div class="hr"></div>
+            <div class="small muted">
+              ハッシュタグ候補：${(d.hashtags||[]).map(h=>`<span class="tag">${escapeHTML(h)}</span>`).join(" ") || "（なし）"}
+            </div>
+            ${flagBad ? `<div class="small bad" style="margin-top:8px"><b>警告：</b>${renderFlags(flags)}</div>` : ``}
+          </div>
+        </div>
+      </div>
+    `;
+    wrap.appendChild(div);
+  });
+
+  wrap.querySelectorAll("[data-act='draft_copy']").forEach(b=>{
+    b.addEventListener("click", async ()=>{
+      const d = state.drafts.find(x=>x.id===b.dataset.id);
+      if(!d) return;
+      const text = d.variants?.[0] || "";
+      await navigator.clipboard.writeText(text);
+      setStatus("コピーしました。Xの投稿画面に貼り付けて、最終確認して投稿してください。");
+    });
+  });
+  wrap.querySelectorAll("[data-act='draft_approve']").forEach(b=>{
+    b.addEventListener("click", ()=>{
+      const d = state.drafts.find(x=>x.id===b.dataset.id);
+      if(!d) return;
+      d.status="approved";
+      d.approvedAt=nowISO();
+      saveState(); renderDrafts();
+    });
+  });
+  wrap.querySelectorAll("[data-act='draft_posted']").forEach(b=>{
+    b.addEventListener("click", ()=>{
+      const d = state.drafts.find(x=>x.id===b.dataset.id);
+      if(!d) return;
+      d.status="posted";
+      d.postedAt=nowISO();
+      saveState(); renderDrafts();
+    });
+  });
+  wrap.querySelectorAll("[data-act='draft_reject']").forEach(b=>{
+    b.addEventListener("click", ()=>{
+      const d = state.drafts.find(x=>x.id===b.dataset.id);
+      if(!d) return;
+      d.status="rejected";
+      saveState(); renderDrafts();
+    });
+  });
+}
+
+function statusLabel(s){
+  return s==="pending" ? "未承認" :
+         s==="approved" ? "承認済み" :
+         s==="posted" ? "投稿済み" :
+         s==="rejected" ? "却下" : s;
+}
+function renderFlags(flags){
+  const map = {
+    over_limit: "文字数オーバー（上限を超えています）",
+    forbidden: "NG表現が含まれています",
+    no_source: "出典URLがありません（事実確認推奨）",
+    hype: "誇大/断定に近い表現があります",
+  };
+  return Object.entries(flags).filter(([k,v])=>v).map(([k])=>map[k]||k).join(" / ");
+}
+function countChars(s){ return [...(s||"")].length; }
+
+/** =========================
+ *  Inputs -> settings
+ *  ========================= */
+["forbidden","adRule","variantCount","charLimit","maxDistribute","corsProxy"].forEach(id=>{
+  el(id).addEventListener("input", ()=>{
+    state.settings.forbidden = el("forbidden").value;
+    state.settings.adRule = el("adRule").value;
+    state.settings.variantCount = parseInt(el("variantCount").value,10);
+    state.settings.charLimit = clamp(parseInt(el("charLimit").value||"140",10),80,280);
+    state.settings.maxDistribute = clamp(parseInt(el("maxDistribute").value||"2",10),1,10);
+    state.settings.corsProxy = el("corsProxy").value.trim();
+    saveState();
+    renderDrafts();
+  });
+});
+
+el("filterAccount").addEventListener("input", renderDrafts);
+el("filterStatus").addEventListener("input", renderDrafts);
+
+/** =========================
+ *  Source management
+ *  ========================= */
+el("btnAddSource").addEventListener("click", ()=>{
+  const url = el("srcUrl").value.trim();
+  if(!url){ setStatus("URLが空です"); return; }
+  const tags = parseCSVish(el("srcTags").value);
+  const include = parseCSVish(el("srcInclude").value);
+  const exclude = parseCSVish(el("srcExclude").value);
+  state.sources.push({ id: uid(), url, tags, include, exclude, createdAt: nowISO() });
+  el("srcUrl").value=""; el("srcTags").value=""; el("srcInclude").value=""; el("srcExclude").value="";
+  saveState(); renderSources();
+  setStatus("ソースを追加しました");
+});
+
+/** =========================
+ *  Manual items
+ *  ========================= */
+el("btnAddManual").addEventListener("click", ()=>{
+  const text = el("manualText").value.trim();
+  if(!text){ setStatus("手入力ネタが空です"); return; }
+  const title = text.split("\n")[0].slice(0,80);
+  state.items.push({
+    id: uid(),
+    type: "manual",
+    title: title || "手入力ネタ",
+    summary: text.slice(0,240),
+    url: extractFirstUrl(text),
+    tags: guessTags(text),
+    createdAt: nowISO()
+  });
+  el("manualText").value="";
+  saveState(); renderItems();
+  setStatus("手入力ネタを追加しました");
+});
+
+function extractFirstUrl(text){
+  const m = (text||"").match(/https?:\/\/[^\s)]+/);
+  return m ? m[0] : "";
+}
+
+/** =========================
+ *  Generate drafts
+ *  ========================= */
+el("btnGenerate").addEventListener("click", ()=>generateAll({dealsOnly:false}));
+el("btnGenerateDeals").addEventListener("click", ()=>generateAll({dealsOnly:true}));
+
+async function generateAll({dealsOnly}){
+  try{
+    setStatus("収集中…");
+    // 1) collect
+    const rssItems = await collectFromSources(dealsOnly);
+    // merge into state.items (dedupe by url/title hash)
+    const added = addItemsDedup(rssItems);
+
+    setStatus(`ネタ ${added}件追加。スコアリング→割当→下書き生成…`);
+
+    // 2) score + route + draft
+    const maxDistribute = state.settings.maxDistribute || 2;
+    const charLimit = state.settings.charLimit || 140;
+    const variantCount = state.settings.variantCount || 3;
+    const forbidden = parseCSVish(state.settings.forbidden || DEFAULT_FORBIDDEN.join(", "));
+
+    const enabledAccounts = state.accounts.filter(a=>a.enabled);
+    if(enabledAccounts.length===0){
+      setStatus("有効なアカウントがありません"); return;
+    }
+
+    // choose candidate items: newest first, limit
+    const candidates = [...state.items].sort((a,b)=>(b.createdAt||"").localeCompare(a.createdAt||"")).slice(0, 60);
+
+    // Build distribution map per item
+    for(const it of candidates){
+      const score = scoreItem(it, dealsOnly);
+      // ignore too low score
+      if(score.total < 45) continue;
+
+      // choose best accounts by match
+      const rankedAcc = enabledAccounts
+        .map(a=>({a, m: matchScore(a, it)}))
+        .sort((x,y)=>y.m-x.m)
+        .slice(0, maxDistribute);
+
+      for(const {a} of rankedAcc){
+        // avoid duplicate draft for same item+account
+        if(state.drafts.some(d=>d.itemId===it.id && d.accountId===a.id)) continue;
+
+        const base = buildDraftVariants({account:a, item:it, score, charLimit, variantCount, forbidden});
+        state.drafts.push(base);
+      }
+    }
+
+    saveState();
+    renderItems(); renderDrafts();
+    setStatus("完了：下書きを生成しました（コピーして手動投稿してください）");
+  }catch(e){
+    console.error(e);
+    setStatus("エラー：RSS取得がブロックされた可能性があります。手入力ネタで運用するか、CORSプロキシを設定してください。");
+  }
+}
+
+async function collectFromSources(dealsOnly){
+  const out = [];
+  const proxyTpl = (state.settings.corsProxy||"").trim(); // e.g. https://api.allorigins.win/raw?url={URL}
+  for(const s of state.sources){
+    const url = s.url;
+    try{
+      const feedText = await fetchText(url, proxyTpl);
+      const items = parseRSS(feedText).slice(0, 12).map(x=>{
+        const title = x.title || "（タイトルなし）";
+        const summary = (x.description || "").replace(/\s+/g," ").trim().slice(0,240);
+        const tags = [...new Set([...(s.tags||[]), ...guessTags(title+" "+summary)])];
+        return {
+          id: uid(),
+          type: "rss",
+          title,
+          summary,
+          url: x.link || url,
+          tags,
+          createdAt: nowISO(),
+          publishedAt: x.pubDate || ""
+        };
+      });
+
+      for(const it of items){
+        if(!passesFilters(it, s)) continue;
+        if(dealsOnly && !looksDeal(it.title+" "+it.summary)) continue;
+        out.push(it);
+      }
+    }catch(err){
+      // skip this source
+      console.warn("source failed", url, err);
+    }
+  }
+  return out;
+}
+
+function passesFilters(item, source){
+  const t = (item.title+" "+item.summary).toLowerCase();
+  const include = (source.include||[]).map(x=>x.toLowerCase()).filter(Boolean);
+  const exclude = (source.exclude||[]).map(x=>x.toLowerCase()).filter(Boolean);
+  if(include.length && !include.some(k=>t.includes(k))) return false;
+  if(exclude.length && exclude.some(k=>t.includes(k))) return false;
+  return true;
+}
+
+function looksDeal(text){
+  const t = (text||"").toLowerCase();
+  const keys = ["セール","値下げ","割引","クーポン","ポイント","還元","タイムセール","キャンペーン","特価","sale","off","%"];
+  return keys.some(k=>t.includes(k.toLowerCase()));
+}
+
+async function fetchText(url, proxyTpl){
+  let target = url;
+  if(proxyTpl && proxyTpl.includes("{URL}")){
+    target = proxyTpl.replace("{URL}", encodeURIComponent(url));
+  }
+  const res = await fetch(target, { method:"GET" });
+  if(!res.ok) throw new Error("fetch failed "+res.status);
+  return await res.text();
+}
+
+function parseRSS(xmlText){
+  // super-light RSS parser (DOMParser)
+  const doc = new DOMParser().parseFromString(xmlText, "text/xml");
+  const items = Array.from(doc.querySelectorAll("item")).map(it=>({
+    title: (it.querySelector("title")?.textContent||"").trim(),
+    link: (it.querySelector("link")?.textContent||"").trim(),
+    pubDate: (it.querySelector("pubDate")?.textContent||"").trim(),
+    description: (it.querySelector("description")?.textContent||"").trim(),
+  }));
+  // Atom support
+  if(items.length===0){
+    const entries = Array.from(doc.querySelectorAll("entry")).map(en=>({
+      title: (en.querySelector("title")?.textContent||"").trim(),
+      link: (en.querySelector("link")?.getAttribute("href")||"").trim(),
+      pubDate: (en.querySelector("updated")?.textContent||en.querySelector("published")?.textContent||"").trim(),
+      description: (en.querySelector("summary")?.textContent||"").trim(),
+    }));
+    return entries;
+  }
+  return items;
+}
+
+function addItemsDedup(items){
+  let added = 0;
+  for(const it of items){
+    const key = (it.url || it.title || "").trim().toLowerCase();
+    if(!key) continue;
+    const exists = state.items.some(x=>{
+      const k2 = (x.url || x.title || "").trim().toLowerCase();
+      return k2 === key;
+    });
+    if(exists) continue;
+    state.items.push(it);
+    added++;
+  }
+  return added;
+}
+
+/** =========================
+ *  Scoring / Routing
+ *  ========================= */
+function guessTags(text){
+  const t = (text||"").toLowerCase();
+  const tags = [];
+  const map = [
+    ["ガジェット","ガジェット"],["家電","家電"],["スマホ","スマホ"],["iphone","スマホ"],
+    ["節約","節約"],["クーポン","節約"],["ポイント","節約"],
+    ["旅行","旅行"],["ホテル","旅行"],["航空","旅行"],
+    ["美容","美容"],["コスメ","美容"],["スキン","美容"],
+    ["学習","学習"],["資格","学習"],["勉強","学習"],
+    ["サブスク","サブスク"],["アプリ","サブスク"],
+    ["日用品","日用品"],["便利","日用品"],
+    ["エンタメ","エンタメ"],["映画","エンタメ"],["配信","エンタメ"],
+    ["インテリア","住まい"],["家具","住まい"],["住まい","住まい"],
+    ["セール","セール"],["値下げ","セール"],["割引","セール"]
+  ];
+  for(const [k,tag] of map){
+    if(t.includes(k)) tags.push(tag);
+  }
+  return [...new Set(tags)].slice(0,6);
+}
+
+function scoreItem(item, dealsOnly){
+  const text = (item.title+" "+item.summary).toLowerCase();
+  const freshness = item.publishedAt ? 60 : 45; // simple
+  const dealBoost = looksDeal(text) ? 20 : 0;
+  const match = item.tags?.length ? 15 : 5;
+  const risk = detectRisk(text).level==="high" ? -20 : detectRisk(text).level==="med" ? -10 : 0;
+  let total = freshness + dealBoost + match + risk;
+  if(dealsOnly && !looksDeal(text)) total -= 25;
+  total = clamp(total, 0, 100);
+  return { total, freshness, dealBoost, match, risk };
+}
+
+function matchScore(account, item){
+  const a = (account.theme+" "+account.name).toLowerCase();
+  const tags = (item.tags||[]).join(" ").toLowerCase();
+  const text = (item.title+" "+item.summary).toLowerCase();
+  let s = 0;
+  // theme & tags
+  if(tags && a && tags.split(" ").some(t=>a.includes(t))) s += 20;
+  if(tags && a && a.split(/\s|\/|、|,/).some(k=>k && tags.includes(k.toLowerCase()))) s += 15;
+  // keyword heuristics
+  if(looksDeal(text) && (a.includes("節約")||a.includes("ガジェット")||a.includes("日用品"))) s += 10;
+  if(text.includes("新発売") && (a.includes("ガジェット")||a.includes("家電"))) s += 10;
+  // fallback
+  s += (item.tags?.length||0);
+  return s;
+}
+
+/** =========================
+ *  Draft generation (rule-based)
+ *  ========================= */
+function buildDraftVariants({account, item, score, charLimit, variantCount, forbidden}){
+  const risk = detectRisk(item.title+" "+item.summary).level;
+  const ad = applyAdRule(state.settings.adRule || "prefix:#PR", "");
+  const link = item.url ? shortenForDisplay(item.url) : "";
+  const tags = pickHashtags(account, item);
+
+  const coreFacts = pickFacts(item);
+  const cta = pickCTA(account, item);
+
+  // A/B/C with different angles
+  const baseA = `${hook(account, item)}\n${coreFacts}\n${cta}${link ? " " + link : ""}`;
+  const baseB = `${compareAngle(account, item)}\n${coreFacts}\n${cta}${link ? " " + link : ""}`;
+  const baseC = `${cautionAngle(account, item)}\n${coreFacts}\n${cta}${link ? " " + link : ""}`;
+
+  const candidates = [baseA, baseB, baseC].slice(0, variantCount);
+
+  const variants = candidates.map(t=>{
+    let v = normalizeTone(account.tone, t);
+    v = applyAdRule(state.settings.adRule || "prefix:#PR", v);
+    v = autoRewrite(v, forbidden);
+    v = trimToLimit(v, charLimit);
+    return v;
+  });
+
+  const flags = {
+    over_limit: variants.some(v=>countChars(v)>charLimit),
+    forbidden: variants.some(v=>containsForbidden(v, forbidden)),
+    no_source: !item.url,
+    hype: containsHype(variants.join("\n"))
+  };
+
+  return {
+    id: uid(),
+    accountId: account.id,
+    itemId: item.id,
+    variants,
+    hashtags: tags,
+    score: score.total,
+    risk,
+    flags,
+    status: "pending",
+    createdAt: nowISO()
+  };
+}
+
+function shortenForDisplay(url){
+  try{
+    const u = new URL(url);
+    return u.host;
+  }catch(e){
+    return "";
+  }
+}
+
+function applyAdRule(rule, text){
+  const [pos, mark] = rule.split(":");
+  if(pos==="prefix"){
+    return `${mark}\n${text}`.trim();
+  }
+  if(pos==="suffix"){
+    return `${text} ${mark}`.trim();
+  }
+  return text;
+}
+
+function pickHashtags(account, item){
+  const base = [];
+  // keep <=3
+  if(account.theme.includes("ガジェット")||item.tags?.includes("ガジェット")) base.push("#ガジェット");
+  if(account.theme.includes("節約")||item.tags?.includes("節約")||item.tags?.includes("セール")) base.push("#節約");
+  if(item.tags?.includes("旅行")) base.push("#旅行");
+  if(item.tags?.includes("美容")) base.push("#美容");
+  if(account.theme.includes("仕事")||account.theme.includes("効率")) base.push("#仕事効率化");
+  // fallback from tags
+  if(base.length<3 && item.tags?.includes("サブスク")) base.push("#サブスク");
+  return [...new Set(base)].slice(0,3);
+}
+
+function pickFacts(item){
+  // summary trimmed to one line-ish
+  const s = (item.summary||"").replace(/\s+/g," ").trim();
+  if(!s) return "要点：公式/一次情報で条件を確認してね。";
+  return `要点：${s.slice(0, 70)}${s.length>70?"…":""}`;
+}
+
+function pickCTA(account, item){
+  const t = (account.theme||"").toLowerCase();
+  if(t.includes("節約") || (item.tags||[]).includes("セール")) return "条件（期間/対象/還元）は公式で確認→";
+  if(t.includes("ガジェット") || (item.tags||[]).includes("家電")) return "スペック/対応機種は公式で確認→";
+  if(t.includes("旅行")) return "日程と条件で価格が変わるので確認→";
+  return "詳細はリンク先で確認→";
+}
+
+function hook(toneAcc, item){
+  const t = (item.title||"").trim();
+  return t ? `【気になる】${t}` : "【気になる】今日の注目ネタ";
+}
+function compareAngle(account, item){
+  return "【比較視点】買う前に“条件”だけ先にチェック";
+}
+function cautionAngle(account, item){
+  return "【注意】対象/期間/在庫で内容が変わることがあります";
+}
+
+function normalizeTone(tone, text){
+  // simple tone tweaks
+  if(tone==="丁寧") return text.replace(/ね。/g,"ください。").replace(/チェック/g,"ご確認");
+  if(tone==="淡々") return text.replace(/【/g,"［").replace(/】/g,"］");
+  if(tone==="熱量高め") return text + "\n（刺さったら保存推奨）";
+  return text; // フランク
+}
+
+function trimToLimit(text, limit){
+  const chars = [...text];
+  if(chars.length<=limit) return text;
+  // try removing extra line breaks first
+  let t = text.replace(/\n+/g," ").replace(/\s+/g," ").trim();
+  if([...t].length<=limit) return t;
+  return [...t].slice(0, limit-1).join("") + "…";
+}
+
+function containsForbidden(text, forbidden){
+  const t = text || "";
+  return forbidden.some(w=>w && t.includes(w));
+}
+
+function containsHype(text){
+  const hype = ["絶対","必ず","100%","確実","誰でも","最安","No.1","ナンバーワン","治る","儲かる","勝てる"];
+  return hype.some(w=>text.includes(w));
+}
+
+function detectRisk(text){
+  const t = (text||"").toLowerCase();
+  // very rough
+  const med = ["投資","fx","仮想通貨","ギャンブル","必勝","薬","サプリ","治る","効果","痩せる"];
+  const high = ["確実に勝てる","必ず儲かる","治ります","100%"];
+  if(high.some(k=>t.includes(k))) return {level:"high"};
+  if(med.some(k=>t.includes(k))) return {level:"med"};
+  return {level:"low"};
+}
+
+function autoRewrite(text, forbidden){
+  // light rewrite of a few risky phrases
+  let t = text;
+  const pairs = [
+    ["絶対","条件次第で"],
+    ["必ず","多くの場合"],
+    ["100%","かなり高い確率で"],
+    ["確実に","可能性が高く"],
+    ["最安","お得になりやすい"],
+    ["No.1","人気上位"]
+  ];
+  for(const [from,to] of pairs){
+    if(t.includes(from)) t = t.split(from).join(to);
+  }
+  // remove forbidden if still included (soft)
+  forbidden.forEach(w=>{
+    if(!w) return;
+    // do not delete ad tags (#PR)
+    if(w==="#PR") return;
+  });
+  return t;
+}
+
+/** =========================
+ *  Buttons: seed/reset/import/export
+ *  ========================= */
+el("btnSeed10").addEventListener("click", ()=>{
+  state.accounts = DEFAULT_ACCOUNTS.map(a=>({...a, id: uid()}));
+  saveState(); renderAccounts(); renderFilters();
+  setStatus("10アカウント初期テンプレを投入しました");
+});
+
+el("btnReset").addEventListener("click", ()=>{
+  if(!confirm("全設定・ネタ・下書きを初期化します。よろしいですか？")) return;
+  localStorage.removeItem(LS_KEY);
+  location.reload();
+});
+
+el("btnExport").addEventListener("click", ()=>{
+  const blob = new Blob([JSON.stringify(state, null, 2)], {type:"application/json"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "x_aff_draft_tool_settings.json";
+  a.click();
+  URL.revokeObjectURL(a.href);
+});
+
+el("btnImport").addEventListener("click", ()=> el("importFile").click());
+el("importFile").addEventListener("change", async (e)=>{
+  const f = e.target.files?.[0];
+  if(!f) return;
+  const txt = await f.text();
+  try{
+    const s = JSON.parse(txt);
+    // minimal validation
+    if(!s.accounts || !s.settings) throw new Error("invalid");
+    localStorage.setItem(LS_KEY, JSON.stringify(s));
+    location.reload();
+  }catch(err){
+    alert("読み込みに失敗しました（JSON形式を確認してください）");
+  }
+});
+
+renderAll();
+</script>
+</body>
+</html>
