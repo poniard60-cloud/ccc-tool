@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
+<meta name="viewport" content="width=device-width,initial-scale=1, viewport-fit=cover" />
 <title>Xアフィリエイト下書き自動生成ダッシュボード（JP / 10アカウント / 手動投稿）</title>
 <style>
   :root{
@@ -62,6 +62,17 @@
   .dangerbox{border:1px solid rgba(251,113,133,.45);background:rgba(251,113,133,.08);padding:10px;border-radius:12px}
   .okbox{border:1px solid rgba(52,211,153,.35);background:rgba(52,211,153,.08);padding:10px;border-radius:12px}
   .infobox{border:1px solid rgba(96,165,250,.35);background:rgba(96,165,250,.08);padding:10px;border-radius:12px}
+
+  /* iPhone copy fallback modal */
+  .modalBack{
+    position:fixed; inset:0; background:rgba(0,0,0,.55);
+    display:none; align-items:center; justify-content:center; padding:16px; z-index:9999;
+  }
+  .modal{
+    width:min(720px,100%); background:linear-gradient(180deg,var(--panel),var(--panel2));
+    border:1px solid var(--line); border-radius:14px; padding:12px;
+  }
+  .modal textarea{min-height:160px}
 </style>
 </head>
 <body>
@@ -69,9 +80,10 @@
   <div class="row">
     <div>
       <h1>Xアフィリエイト下書き自動生成ダッシュボード（日本 / 10アカウント / 投稿は手動）</h1>
-      <div class="sub">ワンボタンで「収集→ネタ化→下書き生成→広告表記/リスク検知→コピー」まで。自動投稿はしません。</div>
+      <div class="sub">「収集→ネタ化→下書き生成→広告表記/リスク検知→コピー」まで。自動投稿はしません。</div>
     </div>
     <div class="row">
+      <button class="secondary" id="btnJumpDrafts">下書きへ移動</button>
       <button class="secondary" id="btnExport">設定を書き出し</button>
       <button class="secondary" id="btnImport">読み込み</button>
       <input type="file" id="importFile" accept="application/json" style="display:none">
@@ -190,10 +202,10 @@
     </section>
 
     <!-- Right: Data -->
-    <section class="card">
+    <section class="card" id="rightPanel">
       <div class="row" style="justify-content:space-between;align-items:flex-end">
         <div>
-          <h2>下書きキュー</h2>
+          <h2>下書きキュー <span class="pill" id="countsPill" title="件数"><b>0</b></span></h2>
           <div class="sub">未承認→承認→コピーして手動投稿→投稿済みにする</div>
         </div>
         <div class="row">
@@ -220,11 +232,28 @@
 
       <div class="hr"></div>
 
-      <h3>下書き</h3>
+      <h3 id="draftsAnchor">下書き</h3>
       <div id="draftsList" class="list"></div>
     </section>
   </div>
 </main>
+
+<!-- Copy fallback modal -->
+<div class="modalBack" id="copyModalBack" aria-hidden="true">
+  <div class="modal">
+    <div class="row" style="justify-content:space-between;align-items:center">
+      <div style="font-weight:800">コピーできない場合の代替</div>
+      <button class="ghost" id="btnCloseModal">閉じる</button>
+    </div>
+    <div class="small muted" style="margin:8px 0 6px">
+      このテキストを長押し→「すべて選択」→「コピー」してください。
+    </div>
+    <textarea id="copyModalText"></textarea>
+    <div class="row right" style="margin-top:8px">
+      <button class="secondary" id="btnSelectAll">全選択</button>
+    </div>
+  </div>
+</div>
 
 <script>
 /** =========================
@@ -252,7 +281,6 @@ function loadState(){
   if(raw){
     try{
       const s = JSON.parse(raw);
-      // minimal migrations
       s.accounts ??= DEFAULT_ACCOUNTS;
       s.sources ??= [];
       s.items ??= [];
@@ -282,9 +310,7 @@ function loadState(){
     }
   };
 }
-function saveState(){
-  localStorage.setItem(LS_KEY, JSON.stringify(state));
-}
+function saveState(){ localStorage.setItem(LS_KEY, JSON.stringify(state)); }
 
 /** =========================
  *  UI helpers
@@ -295,16 +321,31 @@ const setStatus = (t)=>{ el("status").textContent = t; };
 function escapeHTML(s){
   return (s??"").replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
 }
+function parseCSVish(text){ return (text||"").split(",").map(s=>s.trim()).filter(Boolean); }
 
-function parseCSVish(text){
-  return (text||"").split(",").map(s=>s.trim()).filter(Boolean);
+function countChars(s){ return [...(s||"")].length; }
+
+function openCopyModal(text){
+  el("copyModalText").value = text || "";
+  el("copyModalBack").style.display = "flex";
+  el("copyModalBack").setAttribute("aria-hidden","false");
+  setTimeout(()=>el("copyModalText").focus(), 50);
 }
+function closeCopyModal(){
+  el("copyModalBack").style.display = "none";
+  el("copyModalBack").setAttribute("aria-hidden","true");
+}
+el("btnCloseModal").addEventListener("click", closeCopyModal);
+el("copyModalBack").addEventListener("click", (e)=>{ if(e.target.id==="copyModalBack") closeCopyModal(); });
+el("btnSelectAll").addEventListener("click", ()=>{
+  const t = el("copyModalText");
+  t.focus(); t.select();
+});
 
 /** =========================
  *  Render
  *  ========================= */
 function renderAll(){
-  // settings -> inputs
   el("forbidden").value = state.settings.forbidden ?? "";
   el("adRule").value = state.settings.adRule ?? "prefix:#PR";
   el("variantCount").value = String(state.settings.variantCount ?? 3);
@@ -317,13 +358,20 @@ function renderAll(){
   renderItems();
   renderDrafts();
   renderFilters();
+  renderCounts();
+}
+
+function renderCounts(){
+  const total = state.drafts.length;
+  const pending = state.drafts.filter(d=>d.status==="pending").length;
+  el("countsPill").innerHTML = `<b>${pending}</b><span class="muted"> / ${total}</span>`;
 }
 
 function renderAccounts(){
   const wrap = el("accounts");
   wrap.innerHTML = "";
 
-  state.accounts.forEach((a, idx)=>{
+  state.accounts.forEach((a)=>{
     const div = document.createElement("div");
     div.className = "item";
     div.innerHTML = `
@@ -376,6 +424,7 @@ function renderAccounts(){
       saveState();
       renderFilters();
       renderDrafts();
+      renderCounts();
     });
   });
 }
@@ -420,12 +469,10 @@ function renderSources(){
     b.addEventListener("click", ()=>{
       const s = state.sources.find(x=>x.id===b.dataset.id);
       if(!s) return;
-      // Load into inputs for quick edit
       el("srcUrl").value = s.url;
       el("srcTags").value = (s.tags||[]).join(", ");
       el("srcInclude").value = (s.include||[]).join(", ");
       el("srcExclude").value = (s.exclude||[]).join(", ");
-      // Remove current one; re-add on "追加"
       state.sources = state.sources.filter(x=>x.id!==s.id);
       saveState(); renderSources();
       setStatus("編集内容を反映して「ソース追加」を押してください");
@@ -440,11 +487,11 @@ function renderItems(){
     wrap.innerHTML = `<div class="muted small">ネタがありません。RSS取得または手入力ネタを追加してください。</div>`;
     return;
   }
-  // newest first
   const items = [...state.items].sort((a,b)=> (b.createdAt||"").localeCompare(a.createdAt||""));
-  items.slice(0, 30).forEach(it=>{
+  items.slice(0, 40).forEach(it=>{
     const div = document.createElement("div");
     div.className = "item";
+    const score = scoreItem(it, false).total;
     div.innerHTML = `
       <div class="top">
         <div style="flex:1">
@@ -452,11 +499,13 @@ function renderItems(){
           <div class="small muted">${escapeHTML(it.summary||"")}</div>
           <div class="meta" style="margin-top:6px">
             <span class="pill">種別 <b>${escapeHTML(it.type)}</b></span>
+            <span class="pill">推定スコア <b>${escapeHTML(String(score))}</b></span>
             ${it.url ? `<a class="pill" href="${escapeHTML(it.url)}" target="_blank" rel="noreferrer">出典</a>` : `<span class="pill">出典 <b>なし</b></span>`}
             ${it.tags?.length ? `<span class="pill">タグ <b>${escapeHTML(it.tags.join(" / "))}</b></span>` : ""}
           </div>
         </div>
         <div class="row">
+          <button class="secondary" data-act="item_draft" data-id="${it.id}">このネタから下書き生成</button>
           <button class="ghost" data-act="item_del" data-id="${it.id}">削除</button>
         </div>
       </div>
@@ -468,9 +517,14 @@ function renderItems(){
     b.addEventListener("click", ()=>{
       const id = b.dataset.id;
       state.items = state.items.filter(x=>x.id!==id);
-      // also remove related drafts
       state.drafts = state.drafts.filter(d=>d.itemId!==id);
-      saveState(); renderItems(); renderDrafts();
+      saveState(); renderItems(); renderDrafts(); renderCounts();
+    });
+  });
+
+  wrap.querySelectorAll("[data-act='item_draft']").forEach(b=>{
+    b.addEventListener("click", ()=>{
+      generateFromItemId(b.dataset.id);
     });
   });
 }
@@ -494,11 +548,11 @@ function renderDrafts(){
   if(stFilter!=="all") drafts = drafts.filter(d=>d.status===stFilter);
 
   if(drafts.length===0){
-    wrap.innerHTML = `<div class="muted small">下書きがありません。「今日の下書きを生成」を押してください。</div>`;
+    wrap.innerHTML = `<div class="muted small">下書きがありません。①手入力ネタを追加 → ②「このネタから下書き生成」または「今日の下書きを生成」を押してください。</div>`;
     return;
   }
 
-  drafts.slice(0, 80).forEach(d=>{
+  drafts.slice(0, 120).forEach(d=>{
     const acc = state.accounts.find(a=>a.id===d.accountId);
     const item = state.items.find(i=>i.id===d.itemId);
     const flags = d.flags || {};
@@ -556,34 +610,42 @@ function renderDrafts(){
       const d = state.drafts.find(x=>x.id===b.dataset.id);
       if(!d) return;
       const text = d.variants?.[0] || "";
-      await navigator.clipboard.writeText(text);
-      setStatus("コピーしました。Xの投稿画面に貼り付けて、最終確認して投稿してください。");
+      const ok = await safeCopy(text);
+      if(ok){
+        setStatus("コピーしました。Xの投稿画面に貼り付けて、最終確認して投稿してください。");
+      }else{
+        setStatus("コピーに失敗しました。代替画面を開きました（長押しでコピーしてください）。");
+        openCopyModal(text);
+      }
     });
   });
+
   wrap.querySelectorAll("[data-act='draft_approve']").forEach(b=>{
     b.addEventListener("click", ()=>{
       const d = state.drafts.find(x=>x.id===b.dataset.id);
       if(!d) return;
       d.status="approved";
       d.approvedAt=nowISO();
-      saveState(); renderDrafts();
+      saveState(); renderDrafts(); renderCounts();
     });
   });
+
   wrap.querySelectorAll("[data-act='draft_posted']").forEach(b=>{
     b.addEventListener("click", ()=>{
       const d = state.drafts.find(x=>x.id===b.dataset.id);
       if(!d) return;
       d.status="posted";
       d.postedAt=nowISO();
-      saveState(); renderDrafts();
+      saveState(); renderDrafts(); renderCounts();
     });
   });
+
   wrap.querySelectorAll("[data-act='draft_reject']").forEach(b=>{
     b.addEventListener("click", ()=>{
       const d = state.drafts.find(x=>x.id===b.dataset.id);
       if(!d) return;
       d.status="rejected";
-      saveState(); renderDrafts();
+      saveState(); renderDrafts(); renderCounts();
     });
   });
 }
@@ -603,7 +665,31 @@ function renderFlags(flags){
   };
   return Object.entries(flags).filter(([k,v])=>v).map(([k])=>map[k]||k).join(" / ");
 }
-function countChars(s){ return [...(s||"")].length; }
+
+/** =========================
+ *  iPhone-safe copy
+ *  ========================= */
+async function safeCopy(text){
+  try{
+    if(navigator.clipboard?.writeText){
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  }catch(e){}
+  // fallback: try execCommand
+  try{
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    ta.style.position = "fixed";
+    ta.style.left = "-9999px";
+    document.body.appendChild(ta);
+    ta.focus(); ta.select();
+    const ok = document.execCommand("copy");
+    document.body.removeChild(ta);
+    return !!ok;
+  }catch(e){}
+  return false;
+}
 
 /** =========================
  *  Inputs -> settings
@@ -618,11 +704,12 @@ function countChars(s){ return [...(s||"")].length; }
     state.settings.corsProxy = el("corsProxy").value.trim();
     saveState();
     renderDrafts();
+    renderCounts();
   });
 });
 
-el("filterAccount").addEventListener("input", renderDrafts);
-el("filterStatus").addEventListener("input", renderDrafts);
+el("filterAccount").addEventListener("input", ()=>{ renderDrafts(); });
+el("filterStatus").addEventListener("input", ()=>{ renderDrafts(); });
 
 /** =========================
  *  Source management
@@ -646,7 +733,7 @@ el("btnAddManual").addEventListener("click", ()=>{
   const text = el("manualText").value.trim();
   if(!text){ setStatus("手入力ネタが空です"); return; }
   const title = text.split("\n")[0].slice(0,80);
-  state.items.push({
+  const it = {
     id: uid(),
     type: "manual",
     title: title || "手入力ネタ",
@@ -654,10 +741,11 @@ el("btnAddManual").addEventListener("click", ()=>{
     url: extractFirstUrl(text),
     tags: guessTags(text),
     createdAt: nowISO()
-  });
+  };
+  state.items.push(it);
   el("manualText").value="";
   saveState(); renderItems();
-  setStatus("手入力ネタを追加しました");
+  setStatus("手入力ネタを追加しました。右の「このネタから下書き生成」を押してください。");
 });
 
 function extractFirstUrl(text){
@@ -674,14 +762,15 @@ el("btnGenerateDeals").addEventListener("click", ()=>generateAll({dealsOnly:true
 async function generateAll({dealsOnly}){
   try{
     setStatus("収集中…");
-    // 1) collect
     const rssItems = await collectFromSources(dealsOnly);
-    // merge into state.items (dedupe by url/title hash)
     const added = addItemsDedup(rssItems);
 
-    setStatus(`ネタ ${added}件追加。スコアリング→割当→下書き生成…`);
+    const before = state.drafts.length;
+    setStatus(`ネタ ${added}件追加。下書き生成中…`);
 
-    // 2) score + route + draft
+    // 低スコアでも一定数は生成できるように閾値を緩和
+    const minScore = dealsOnly ? 35 : 25;
+
     const maxDistribute = state.settings.maxDistribute || 2;
     const charLimit = state.settings.charLimit || 140;
     const variantCount = state.settings.variantCount || 3;
@@ -692,42 +781,79 @@ async function generateAll({dealsOnly}){
       setStatus("有効なアカウントがありません"); return;
     }
 
-    // choose candidate items: newest first, limit
-    const candidates = [...state.items].sort((a,b)=>(b.createdAt||"").localeCompare(a.createdAt||"")).slice(0, 60);
+    const candidates = [...state.items].sort((a,b)=>(b.createdAt||"").localeCompare(a.createdAt||"")).slice(0, 80);
 
-    // Build distribution map per item
     for(const it of candidates){
       const score = scoreItem(it, dealsOnly);
-      // ignore too low score
-      if(score.total < 45) continue;
 
-      // choose best accounts by match
+      // 手入力ネタはスコア関係なく生成OK
+      const allow = it.type==="manual" ? true : (score.total >= minScore);
+      if(!allow) continue;
+
       const rankedAcc = enabledAccounts
         .map(a=>({a, m: matchScore(a, it)}))
         .sort((x,y)=>y.m-x.m)
         .slice(0, maxDistribute);
 
       for(const {a} of rankedAcc){
-        // avoid duplicate draft for same item+account
         if(state.drafts.some(d=>d.itemId===it.id && d.accountId===a.id)) continue;
-
         const base = buildDraftVariants({account:a, item:it, score, charLimit, variantCount, forbidden});
         state.drafts.push(base);
       }
     }
 
     saveState();
-    renderItems(); renderDrafts();
-    setStatus("完了：下書きを生成しました（コピーして手動投稿してください）");
+    renderItems(); renderDrafts(); renderCounts();
+    const made = state.drafts.length - before;
+    setStatus(`完了：下書き ${made}件 生成しました。右の「下書き」欄に出ています。`);
+    jumpToDrafts();
   }catch(e){
     console.error(e);
     setStatus("エラー：RSS取得がブロックされた可能性があります。手入力ネタで運用するか、CORSプロキシを設定してください。");
   }
 }
 
+function generateFromItemId(itemId){
+  const it = state.items.find(x=>x.id===itemId);
+  if(!it){ setStatus("ネタが見つかりません"); return; }
+
+  const before = state.drafts.length;
+
+  const maxDistribute = state.settings.maxDistribute || 2;
+  const charLimit = state.settings.charLimit || 140;
+  const variantCount = state.settings.variantCount || 3;
+  const forbidden = parseCSVish(state.settings.forbidden || DEFAULT_FORBIDDEN.join(", "));
+
+  const enabledAccounts = state.accounts.filter(a=>a.enabled);
+  if(enabledAccounts.length===0){
+    setStatus("有効なアカウントがありません"); return;
+  }
+
+  const score = scoreItem(it, false);
+
+  const rankedAcc = enabledAccounts
+    .map(a=>({a, m: matchScore(a, it)}))
+    .sort((x,y)=>y.m-x.m)
+    .slice(0, maxDistribute);
+
+  for(const {a} of rankedAcc){
+    if(state.drafts.some(d=>d.itemId===it.id && d.accountId===a.id)) continue;
+    const base = buildDraftVariants({account:a, item:it, score, charLimit, variantCount, forbidden});
+    state.drafts.push(base);
+  }
+
+  saveState(); renderDrafts(); renderCounts();
+  const made = state.drafts.length - before;
+  setStatus(`このネタから下書き ${made}件 生成しました。`);
+  jumpToDrafts();
+}
+
+/** =========================
+ *  Collect / RSS
+ *  ========================= */
 async function collectFromSources(dealsOnly){
   const out = [];
-  const proxyTpl = (state.settings.corsProxy||"").trim(); // e.g. https://api.allorigins.win/raw?url={URL}
+  const proxyTpl = (state.settings.corsProxy||"").trim();
   for(const s of state.sources){
     const url = s.url;
     try{
@@ -754,7 +880,6 @@ async function collectFromSources(dealsOnly){
         out.push(it);
       }
     }catch(err){
-      // skip this source
       console.warn("source failed", url, err);
     }
   }
@@ -787,7 +912,6 @@ async function fetchText(url, proxyTpl){
 }
 
 function parseRSS(xmlText){
-  // super-light RSS parser (DOMParser)
   const doc = new DOMParser().parseFromString(xmlText, "text/xml");
   const items = Array.from(doc.querySelectorAll("item")).map(it=>({
     title: (it.querySelector("title")?.textContent||"").trim(),
@@ -795,7 +919,6 @@ function parseRSS(xmlText){
     pubDate: (it.querySelector("pubDate")?.textContent||"").trim(),
     description: (it.querySelector("description")?.textContent||"").trim(),
   }));
-  // Atom support
   if(items.length===0){
     const entries = Array.from(doc.querySelectorAll("entry")).map(en=>({
       title: (en.querySelector("title")?.textContent||"").trim(),
@@ -850,7 +973,7 @@ function guessTags(text){
 
 function scoreItem(item, dealsOnly){
   const text = (item.title+" "+item.summary).toLowerCase();
-  const freshness = item.publishedAt ? 60 : 45; // simple
+  const freshness = item.publishedAt ? 60 : 45;
   const dealBoost = looksDeal(text) ? 20 : 0;
   const match = item.tags?.length ? 15 : 5;
   const risk = detectRisk(text).level==="high" ? -20 : detectRisk(text).level==="med" ? -10 : 0;
@@ -865,13 +988,10 @@ function matchScore(account, item){
   const tags = (item.tags||[]).join(" ").toLowerCase();
   const text = (item.title+" "+item.summary).toLowerCase();
   let s = 0;
-  // theme & tags
   if(tags && a && tags.split(" ").some(t=>a.includes(t))) s += 20;
   if(tags && a && a.split(/\s|\/|、|,/).some(k=>k && tags.includes(k.toLowerCase()))) s += 15;
-  // keyword heuristics
   if(looksDeal(text) && (a.includes("節約")||a.includes("ガジェット")||a.includes("日用品"))) s += 10;
   if(text.includes("新発売") && (a.includes("ガジェット")||a.includes("家電"))) s += 10;
-  // fallback
   s += (item.tags?.length||0);
   return s;
 }
@@ -881,14 +1001,11 @@ function matchScore(account, item){
  *  ========================= */
 function buildDraftVariants({account, item, score, charLimit, variantCount, forbidden}){
   const risk = detectRisk(item.title+" "+item.summary).level;
-  const ad = applyAdRule(state.settings.adRule || "prefix:#PR", "");
   const link = item.url ? shortenForDisplay(item.url) : "";
   const tags = pickHashtags(account, item);
-
   const coreFacts = pickFacts(item);
   const cta = pickCTA(account, item);
 
-  // A/B/C with different angles
   const baseA = `${hook(account, item)}\n${coreFacts}\n${cta}${link ? " " + link : ""}`;
   const baseB = `${compareAngle(account, item)}\n${coreFacts}\n${cta}${link ? " " + link : ""}`;
   const baseC = `${cautionAngle(account, item)}\n${coreFacts}\n${cta}${link ? " " + link : ""}`;
@@ -925,45 +1042,29 @@ function buildDraftVariants({account, item, score, charLimit, variantCount, forb
 }
 
 function shortenForDisplay(url){
-  try{
-    const u = new URL(url);
-    return u.host;
-  }catch(e){
-    return "";
-  }
+  try{ return (new URL(url)).host; }catch(e){ return ""; }
 }
-
 function applyAdRule(rule, text){
   const [pos, mark] = rule.split(":");
-  if(pos==="prefix"){
-    return `${mark}\n${text}`.trim();
-  }
-  if(pos==="suffix"){
-    return `${text} ${mark}`.trim();
-  }
+  if(pos==="prefix") return `${mark}\n${text}`.trim();
+  if(pos==="suffix") return `${text} ${mark}`.trim();
   return text;
 }
-
 function pickHashtags(account, item){
   const base = [];
-  // keep <=3
   if(account.theme.includes("ガジェット")||item.tags?.includes("ガジェット")) base.push("#ガジェット");
   if(account.theme.includes("節約")||item.tags?.includes("節約")||item.tags?.includes("セール")) base.push("#節約");
   if(item.tags?.includes("旅行")) base.push("#旅行");
   if(item.tags?.includes("美容")) base.push("#美容");
   if(account.theme.includes("仕事")||account.theme.includes("効率")) base.push("#仕事効率化");
-  // fallback from tags
   if(base.length<3 && item.tags?.includes("サブスク")) base.push("#サブスク");
   return [...new Set(base)].slice(0,3);
 }
-
 function pickFacts(item){
-  // summary trimmed to one line-ish
   const s = (item.summary||"").replace(/\s+/g," ").trim();
   if(!s) return "要点：公式/一次情報で条件を確認してね。";
   return `要点：${s.slice(0, 70)}${s.length>70?"…":""}`;
 }
-
 function pickCTA(account, item){
   const t = (account.theme||"").toLowerCase();
   if(t.includes("節約") || (item.tags||[]).includes("セール")) return "条件（期間/対象/還元）は公式で確認→";
@@ -971,57 +1072,43 @@ function pickCTA(account, item){
   if(t.includes("旅行")) return "日程と条件で価格が変わるので確認→";
   return "詳細はリンク先で確認→";
 }
-
-function hook(toneAcc, item){
+function hook(account, item){
   const t = (item.title||"").trim();
   return t ? `【気になる】${t}` : "【気になる】今日の注目ネタ";
 }
-function compareAngle(account, item){
-  return "【比較視点】買う前に“条件”だけ先にチェック";
-}
-function cautionAngle(account, item){
-  return "【注意】対象/期間/在庫で内容が変わることがあります";
-}
+function compareAngle(){ return "【比較視点】買う前に“条件”だけ先にチェック"; }
+function cautionAngle(){ return "【注意】対象/期間/在庫で内容が変わることがあります"; }
 
 function normalizeTone(tone, text){
-  // simple tone tweaks
   if(tone==="丁寧") return text.replace(/ね。/g,"ください。").replace(/チェック/g,"ご確認");
   if(tone==="淡々") return text.replace(/【/g,"［").replace(/】/g,"］");
   if(tone==="熱量高め") return text + "\n（刺さったら保存推奨）";
-  return text; // フランク
+  return text;
 }
-
 function trimToLimit(text, limit){
   const chars = [...text];
   if(chars.length<=limit) return text;
-  // try removing extra line breaks first
   let t = text.replace(/\n+/g," ").replace(/\s+/g," ").trim();
   if([...t].length<=limit) return t;
   return [...t].slice(0, limit-1).join("") + "…";
 }
-
 function containsForbidden(text, forbidden){
   const t = text || "";
   return forbidden.some(w=>w && t.includes(w));
 }
-
 function containsHype(text){
   const hype = ["絶対","必ず","100%","確実","誰でも","最安","No.1","ナンバーワン","治る","儲かる","勝てる"];
   return hype.some(w=>text.includes(w));
 }
-
 function detectRisk(text){
   const t = (text||"").toLowerCase();
-  // very rough
   const med = ["投資","fx","仮想通貨","ギャンブル","必勝","薬","サプリ","治る","効果","痩せる"];
   const high = ["確実に勝てる","必ず儲かる","治ります","100%"];
   if(high.some(k=>t.includes(k))) return {level:"high"};
   if(med.some(k=>t.includes(k))) return {level:"med"};
   return {level:"low"};
 }
-
-function autoRewrite(text, forbidden){
-  // light rewrite of a few risky phrases
+function autoRewrite(text){
   let t = text;
   const pairs = [
     ["絶対","条件次第で"],
@@ -1034,12 +1121,6 @@ function autoRewrite(text, forbidden){
   for(const [from,to] of pairs){
     if(t.includes(from)) t = t.split(from).join(to);
   }
-  // remove forbidden if still included (soft)
-  forbidden.forEach(w=>{
-    if(!w) return;
-    // do not delete ad tags (#PR)
-    if(w==="#PR") return;
-  });
   return t;
 }
 
@@ -1048,7 +1129,7 @@ function autoRewrite(text, forbidden){
  *  ========================= */
 el("btnSeed10").addEventListener("click", ()=>{
   state.accounts = DEFAULT_ACCOUNTS.map(a=>({...a, id: uid()}));
-  saveState(); renderAccounts(); renderFilters();
+  saveState(); renderAccounts(); renderFilters(); renderCounts();
   setStatus("10アカウント初期テンプレを投入しました");
 });
 
@@ -1074,7 +1155,6 @@ el("importFile").addEventListener("change", async (e)=>{
   const txt = await f.text();
   try{
     const s = JSON.parse(txt);
-    // minimal validation
     if(!s.accounts || !s.settings) throw new Error("invalid");
     localStorage.setItem(LS_KEY, JSON.stringify(s));
     location.reload();
@@ -1082,6 +1162,15 @@ el("importFile").addEventListener("change", async (e)=>{
     alert("読み込みに失敗しました（JSON形式を確認してください）");
   }
 });
+
+/** =========================
+ *  Jump helpers
+ *  ========================= */
+function jumpToDrafts(){
+  const a = el("draftsAnchor");
+  if(a) a.scrollIntoView({behavior:"smooth", block:"start"});
+}
+el("btnJumpDrafts").addEventListener("click", jumpToDrafts);
 
 renderAll();
 </script>
